@@ -2,7 +2,7 @@ import { Entity,Column,PrimaryGeneratedColumn, OneToMany } from "typeorm";
 import { PoDetail } from "./po-detail.entity";
 import { GrMaster } from "./gr-master.entity";
 
-@Entity('purchase_order_master')
+@Entity('purchase_order_master_new')
 export class PoMaster{
     @PrimaryGeneratedColumn('uuid')
     id: string;
@@ -10,7 +10,7 @@ export class PoMaster{
     @Column()
     po_no: string;
 
-    @Column()
+    @Column({ type: 'date' })
     po_date: Date;
 
     @Column()
@@ -19,13 +19,13 @@ export class PoMaster{
     @Column({default: 0})
     po_rev: number;
 
-    @Column()
+    @Column({default: ''})
     po_rev_reason: string;
 
     @Column({default: true})
     is_active: boolean;
 
-    @Column()
+    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
     po_amount: number;
 
     @OneToMany(() => PoDetail, (poDetail) => poDetail.po_master)

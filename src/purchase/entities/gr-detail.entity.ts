@@ -1,13 +1,13 @@
-import { Entity,Column, PrimaryGeneratedColumn, ManyToOne } from "typeorm";
+import { Entity,Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from "typeorm";
 import { GrMaster } from "./gr-master.entity";
 
-@Entity('good_receipt_detail')
+@Entity('good_receipt_detail_new')
 export class GrDetail {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
     @Column()
-    grn_sr: number;
+    sr_no: number;
 
     @Column()
     prod_id: string;
@@ -16,6 +16,7 @@ export class GrDetail {
     prod_qty: number;
 
     @ManyToOne(()=> GrMaster, (grMaster) => grMaster.gr_details)
+    @JoinColumn({ name: 'gr_master_id'})
     gr_master: GrMaster;
 
     @Column('uuid')
