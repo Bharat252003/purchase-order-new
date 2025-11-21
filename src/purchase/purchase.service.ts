@@ -1,14 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PoMaster } from './entities/po-master.entity';
 import { PoDetail } from './entities/po-detail.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { GrMaster } from './entities/gr-master.entity';
 import { GrDetail } from './entities/gr-detail.entity';
 import { CreatePoDto } from './dto/create-po.dto';
 import { DataSource } from 'typeorm';
 import { CreateGrDto } from './dto/create-gr.dto';
 import { AmendPoDto } from './dto/amend-po.dto';
+import { PoMasterMongo } from './entities/po-master.entity-mongo';
 
 @Injectable()
 export class PurchaseService {
@@ -21,7 +22,12 @@ export class PurchaseService {
         private readonly grRepo: Repository<GrMaster>,
         @InjectRepository(GrDetail)
         private readonly grDetailRepo: Repository<GrDetail>,
+        // @InjectRepository(PoMasterMongo, 'mongodb')
+        // private readonly poMasterMongoRepo: Repository<PoMasterMongo>,
+        @InjectDataSource()
         private readonly dataSource: DataSource,
+        // @InjectDataSource('mongodb')
+        // private readonly mongoDataSource: DataSource,
     ) { }
 
     async createPo(createPoDto: CreatePoDto) {
@@ -33,6 +39,12 @@ export class PurchaseService {
             })
 
             const savedPoMaster = await manager.getRepository(PoMaster).save(poMaster)
+            // const savedPoMongo = await this.poMasterMongoRepo.save({
+            //     _id: savedPoMaster.id,
+            //     po_no: savedPoMaster.po_no,
+            //     sup_id: savedPoMaster.sup_id,
+            //     po_date: savedPoMaster.po_date,
+            // });
 
             let total_amount = 0;
             const poDetails = createPoDto.po_details.map((item, index) => {
@@ -53,12 +65,12 @@ export class PurchaseService {
             savedPoMaster.po_amount = total_amount;
             await manager.getRepository(PoMaster).save(savedPoMaster);
 
-            return { message: 'Purchase Order created successfully', po_id: savedPoMaster.id }
+            return { message: 'Purchase Order created successfully', po_id: savedPoMaster.id}
         })
     }
 
     async getAllPo() {
-        return this.poRepo.find({ relations: ['po_details', 'gr_master'] });
+        return this.poRepo.find({ relations: ['po_details'] });
     }
 
     async createGrn(createGrnDto: CreateGrDto) {
@@ -96,15 +108,54 @@ export class PurchaseService {
         // return this.grRepo.find({ relations: ['gr_details', 'po_master'] });
     }
 
-    async amendPo(amendPoDto: AmendPoDto, poNo: string) {
+    async amendPo(amendPoDto: AmendPoDto, poId: string) {
         return await this.dataSource.transaction(async (manager) => {
-            const activePo = await manager.getRepository(PoMaster).findOne({ where: { po_no: poNo, is_active: true } });
-            if (!activePo) throw new NotFoundException("PO not found");
+            const activePo = await manager.getRepository(PoMaster).findOne({ where: { id: poId, is_active: true } });
+            if (!activePo) throw new NotFoundException("PO with id " + poId + " not active or does not exist");
 
-            await this.poRepo.update({ po_no: poNo }, { is_active: false });
+            await this.poRepo.update({ id: poId }, { is_active: false });
+
+            // setting the old po adj _qty to the remaining qty
+
+            const activePoDetails = await manager.getRepository(PoDetail).find({
+                where: { po_master_id: activePo.id }
+            });
+
+            const allGrnMaster = await this.grRepo.find({ where: { po_master_id: poId } });
+
+            let grnDetails: GrDetail[] = [];
+            if (allGrnMaster && allGrnMaster.length > 0) {
+                const grIds = allGrnMaster.map(g => g.id);
+                grnDetails = await this.grDetailRepo.find({
+                    where: { gr_master_id: In(grIds) },
+                    select: ['id', 'prod_id', 'prod_qty', 'sr_no', 'gr_master_id'] as any,
+                });
+            }
+
+
+            // const poDetails = latestPO.po_details;
+
+            const receivedMap = {};
+
+            for (const gr of grnDetails) {
+                if (!receivedMap[gr.prod_id]) receivedMap[gr.prod_id] = 0;
+                receivedMap[gr.prod_id] += gr.prod_qty;
+            }
+
+
+            for (const detail of activePoDetails) {
+                const received = receivedMap[detail.prod_id] ?? 0;
+                const remaining = detail.prod_qty - received;
+
+                detail.adj_qty = remaining;  // store remaining qty into adj_qty
+            }
+
+            await manager.getRepository(PoDetail).save(activePoDetails);
+
+            // creating new po with amedment
 
             const amendedPoMaster = manager.getRepository(PoMaster).create({
-                po_no: poNo,
+                po_no: activePo.po_no,
                 po_date: amendPoDto.poDate,
                 sup_id: amendPoDto.supId,
                 po_rev_reason: amendPoDto.poRevReason,
@@ -135,7 +186,7 @@ export class PurchaseService {
         })
     }
 
-    async getPoReport(poNo: string) {
+    async getPoReport(poId: string) {
 
         // const latestPo = await this.poRepo
         //     .createQueryBuilder('po')
@@ -176,22 +227,34 @@ export class PurchaseService {
 
 
 
-        const allPOs = await this.poRepo.find({
-            where: { po_no: poNo },
+        const latestPO = await this.poRepo.findOne({
+            where: { id: poId },
             relations: ['po_details']
         });
 
-        const latestPO = allPOs
-            .filter(po => po.is_active)
-            .sort((a, b) => b.po_rev - a.po_rev)[0];
+        if (!latestPO) {
+            throw new NotFoundException('Purchase Order not found');
+        }
 
-        const poIds = allPOs.map(po => po.id);
+        // const latestPO = allPOs
+        //     .filter(po => po.is_active)
+        //     .sort((a, b) => b.po_rev - a.po_rev)[0];
 
-        const allGrnDetails = await this.grDetailRepo
-            .createQueryBuilder('grd')
-            .innerJoin('grd.gr_master', 'grm')
-            .where('grm.po_master_id IN (:...poIds)', { poIds })
-            .getMany();
+        // const poIds = allPOs.map(po => po.id);
+
+        // fetch all GR masters for this PO and then fetch details by their ids
+        const allGrnMaster = await this.grRepo.find({ where: { po_master_id: poId } });
+
+        let allGrnDetails: GrDetail[] = [];
+        if (allGrnMaster && allGrnMaster.length > 0) {
+            const grIds = allGrnMaster.map(g => g.id);
+            allGrnDetails = await this.grDetailRepo.find({
+                where: { gr_master_id: In(grIds) },
+                select: ['id', 'prod_id', 'prod_qty', 'sr_no', 'gr_master_id'] as any,
+            });
+        }
+
+
 
         const poDetails = latestPO.po_details;
 
@@ -201,21 +264,29 @@ export class PurchaseService {
             if (!receivedMap[gr.prod_id]) receivedMap[gr.prod_id] = 0;
             receivedMap[gr.prod_id] += gr.prod_qty;
         }
-
+        let totalReceivedQty = 0;
+        let totalOrderedQty = 0;
+        let totalAdjustedQty = 0;
+        let totalPendingQty = 0;
 
         const report = poDetails.map(item => {
             const received = receivedMap[item.prod_id] || 0;
+            totalReceivedQty += received;
+            totalOrderedQty += item.prod_qty;
+            totalAdjustedQty += item.adj_qty;
+            totalPendingQty += item.prod_qty - (item.adj_qty + received);
 
             return {
                 productId: item.prod_id,
                 orderedQty: item.prod_qty,
                 receivedQty: received,
-                remainingQty: item.prod_qty - received
+                adjustedQty: item.adj_qty,
+                remainingQty: item.prod_qty - (item.adj_qty + received)
             };
+
         });
 
         // delete latestPO.po_details;
-        return {...latestPO, report};
-
+        return { ...latestPO, report, totalReceivedQty, totalOrderedQty, totalAdjustedQty, totalPendingQty};
     }
 }

@@ -16,6 +16,9 @@ export class PoDetail{
     @Column()
     prod_qty: number;
 
+    @Column({ default: 0})
+    adj_qty: number;
+
     // @Column()
     // prod_rec_qty: number;
 

@@ -28,13 +28,13 @@ export class PurchaseController {
         return this.purchaseService.getAllGrn();
     }
 
-    @Post('amend/:po_no')
-    async amendPo(@Body() amendPoData: AmendPoDto, @Param('po_no') po_no: string){
-        return this.purchaseService.amendPo(amendPoData, po_no);
+    @Post('amend/:po_id')
+    async amendPo(@Body() amendPoData: AmendPoDto, @Param('po_id') po_id: string){
+        return this.purchaseService.amendPo(amendPoData, po_id);
     }
 
-    @Get('report/:po_no')
-    async getPoReport(@Param('po_no') po_no: string){
-        return this.purchaseService.getPoReport(po_no);
+    @Get('report/:po_id')
+    async getPoReport(@Param('po_id') po_id: string){
+        return this.purchaseService.getPoReport(po_id);
     }
 }
