@@ -10,5 +10,11 @@ async function bootstrap() {
   // eslint-disable-next-line no-console
   console.log(`Server running on http://localhost:${port}`);
 }
-bootstrap();
+// Ensure you have this catch block!
+bootstrap().catch(err => {
+  // Log the specific error that caused the crash
+  console.error("Vercel Dev Startup Error:", err);
+  // Re-throw to ensure the process exits with failure
+  throw err;
+});
 

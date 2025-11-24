@@ -1,26 +1,14 @@
+// src/serverless.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import express = require('express');
 
-let expressServer: express.Express | undefined;
-const bootstrapPromise = (async () => {
-  const server = express();
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
-  app.enableShutdownHooks();
-  await app.init();
-  expressServer = server;
-})();
+let handler: any;
 
-export async function handler(req: any, res: any) {
-  await bootstrapPromise;
-  if (!expressServer) {
-    res.statusCode = 500;
-    return res.end('Server not initialized');
+export default async function (req: any, res: any) {
+  if (!handler) {
+    const app = await NestFactory.create(AppModule);
+    await app.init();
+    handler = app.getHttpAdapter().getInstance();
   }
-  return expressServer(req, res);
-}
-
-export default async function vercelHandler(req: any, res: any) {
   return handler(req, res);
 }
