@@ -1,11 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { createDocument } from './swagger/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  createDocument(app);
   await app.listen(port);
   // eslint-disable-next-line no-console
   console.log(`Server running on http://localhost:${port}`);
