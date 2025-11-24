@@ -35,6 +35,11 @@ export class PurchaseController {
 
     @Get('report/:po_id')
     async getPoReport(@Param('po_id') po_id: string){
-        return this.purchaseService.getPoReport(po_id);
+        return this.purchaseService.getPoReportById(po_id);
+    }
+
+    @Get('report')
+    async getAllPoReport(){
+        return this.purchaseService.getAllPoReport();
     }
 }

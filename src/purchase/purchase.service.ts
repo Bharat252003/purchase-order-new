@@ -10,7 +10,8 @@ import { DataSource } from 'typeorm';
 import { CreateGrDto } from './dto/create-gr.dto';
 import { AmendPoDto } from './dto/amend-po.dto';
 import { PoMasterMongo } from './entities/po-master.entity-mongo';
-
+import { plainToInstance } from 'class-transformer';
+import { AllPoReportDto } from './dto/po-master-report.dto';
 @Injectable()
 export class PurchaseService {
     constructor(
@@ -65,7 +66,7 @@ export class PurchaseService {
             savedPoMaster.po_amount = total_amount;
             await manager.getRepository(PoMaster).save(savedPoMaster);
 
-            return { message: 'Purchase Order created successfully', po_id: savedPoMaster.id}
+            return { message: 'Purchase Order created successfully', po_id: savedPoMaster.id }
         })
     }
 
@@ -186,7 +187,7 @@ export class PurchaseService {
         })
     }
 
-    async getPoReport(poId: string) {
+    async getPoReportById(poId: string) {
 
         // const latestPo = await this.poRepo
         //     .createQueryBuilder('po')
@@ -276,17 +277,135 @@ export class PurchaseService {
             totalAdjustedQty += item.adj_qty;
             totalPendingQty += item.prod_qty - (item.adj_qty + received);
 
-            return {
-                productId: item.prod_id,
-                orderedQty: item.prod_qty,
-                receivedQty: received,
-                adjustedQty: item.adj_qty,
-                remainingQty: item.prod_qty - (item.adj_qty + received)
-            };
+            item['receivedQty'] = received;
+            item['pendingQty'] = item.prod_qty - (item.adj_qty + received);
+            // return {
+            //     productId: item.prod_id,
+            //     orderedQty: item.prod_qty,
+            //     receivedQty: received,
+            //     adjustedQty: item.adj_qty,
+            //     remainingQty: item.prod_qty - (item.adj_qty + received)
+            // };
 
+        });
+        let reports:any = { ...latestPO, totalReceivedQty, totalOrderedQty, totalAdjustedQty, totalPendingQty };
+        const result = plainToInstance( AllPoReportDto, reports, {
+            excludeExtraneousValues: true,
         });
 
         // delete latestPO.po_details;
-        return { ...latestPO, report, totalReceivedQty, totalOrderedQty, totalAdjustedQty, totalPendingQty};
+        return result;
     }
+    async getAllPoReport() {
+
+        // const latestPo = await this.poRepo
+        //     .createQueryBuilder('po')
+        //     .where('po.po_no = :po_no', { poNo })
+        //     .andWhere('po.is_active = true')
+        //     .orderBy('po.revision_no', 'DESC')
+        //     .getOne();
+
+        // if (!latestPo) {
+        //     throw new NotFoundException('Purchase Order not found');
+        // }
+
+        // const allGrns = await this.grDetailRepo
+        //     .createQueryBuilder('grd')
+        //     .innerJoin('grd.gr_master', 'grm')
+        //     .where('grm.po_no = :po_no', { poNo })
+        //     .getMany();
+
+        // const poDetails = latestPo.po_details;
+
+        // const grnReceivedMap = {}; // product_id → total received qty
+
+        // allGrns.forEach(gr => {
+        //     if (!grnReceivedMap[gr.prod_id]) grnReceivedMap[gr.prod_id] = 0;
+        //     grnReceivedMap[gr.prod_id] += gr.prod_qty;
+        // });
+
+        // const report = poDetails.map(item => {
+        //     const received = grnReceivedMap[item.prod_id] || 0;
+
+        //     return {
+        //         productId: item.prod_id,
+        //         orderedQty: item.prod_qty,
+        //         receivedQty: received,
+        //         remainingQty: item.prod_qty - received
+        //     };
+        // });
+
+
+
+        const allPos = await this.poRepo.find({
+            relations: ['po_details']
+        });
+
+        if (!allPos || allPos.length === 0) {
+            throw new NotFoundException('Purchase Order not found');
+        }
+
+        let reports: any[] = [];
+
+        for (const latestPO of allPos) {
+
+            const allGrnMaster = await this.grRepo.find({ where: { po_master_id: latestPO.id } });
+
+            let allGrnDetails: GrDetail[] = [];
+            if (allGrnMaster && allGrnMaster.length > 0) {
+                const grIds = allGrnMaster.map(g => g.id);
+                allGrnDetails = await this.grDetailRepo.find({
+                    where: { gr_master_id: In(grIds) },
+                    select: ['id', 'prod_id', 'prod_qty', 'sr_no', 'gr_master_id'] as any,
+                });
+            }
+
+
+
+            const poDetails = latestPO.po_details;
+
+            const receivedMap = {};
+
+            for (const gr of allGrnDetails) {
+                if (!receivedMap[gr.prod_id]) receivedMap[gr.prod_id] = 0;
+                receivedMap[gr.prod_id] += gr.prod_qty;
+            }
+            let totalReceivedQty = 0;
+            let totalOrderedQty = 0;
+            let totalAdjustedQty = 0;
+            let totalPendingQty = 0;
+            // latestPO.po_details.
+
+            const report = poDetails.map(item => {
+                const received = receivedMap[item.prod_id] || 0;
+                totalReceivedQty += received;
+                totalOrderedQty += item.prod_qty;
+                totalAdjustedQty += item.adj_qty;
+                totalPendingQty += item.prod_qty - (item.adj_qty + received);
+
+                item['receivedQty'] = received;
+                item['pendingQty'] = item.prod_qty - (item.adj_qty + received);
+
+                // return {
+                //     productId: item.prod_id,
+                //     orderedQty: item.prod_qty,
+                //     receivedQty: received,
+                //     adjustedQty: item.adj_qty,
+                //     remainingQty: item.prod_qty - (item.adj_qty + received)
+                // };
+
+            });
+
+            reports.push({ ...latestPO, totalReceivedQty, totalOrderedQty, totalAdjustedQty, totalPendingQty });
+        }
+        const result = plainToInstance( AllPoReportDto, reports, {
+            excludeExtraneousValues: true,
+        });
+
+
+        // delete latestPO.po_details;
+        return result;
+    }
+
+
 }
