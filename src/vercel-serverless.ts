@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import express = require('express');
 
-// Bootstrap a Nest app on top of an express instance once per container
 let expressServer: express.Express | undefined;
 const bootstrapPromise = (async () => {
   const server = express();

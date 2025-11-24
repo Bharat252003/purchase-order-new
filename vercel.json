@@ -1,14 +1,9 @@
 {
-  "version": 3,
-  "functions": {
-    "api/index.ts": {
-      "runtime": "nodejs20.x"
-    }
-  },
+  "version": 2,
+  "builds": [
+    { "src": "dist/vercel-serverless.js", "use": "@vercel/node" }
+  ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.ts"
-    }
+    { "src": "/(.*)", "dest": "dist/vercel-serverless.js" }
   ]
 }
