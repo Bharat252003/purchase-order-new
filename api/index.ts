@@ -1,44 +1,62 @@
-import 'dotenv/config';
-import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import serverless from 'serverless-http';
-import express from 'express';
-import { AppModule } from '../src/app.module';
+require('dotenv/config');
+require('reflect-metadata');
+const serverless = require('serverless-http');
+const express = require('express');
+const { NestFactory } = require('@nestjs/core');
+const { ExpressAdapter } = require('@nestjs/platform-express');
+const { AppModule } = require('../src/app.module');
 
-let cachedHandler: any = null;
-let bootstrapError: any = null;
+let cachedHandler = null;
+let bootstrapError = null;
 
 async function bootstrapHandler() {
   if (cachedHandler || bootstrapError) return;
   try {
     const expressApp = express();
     const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), { logger: false });
-    // optional global pipes/middleware from main.ts
-    app.useGlobalPipes && app.useGlobalPipes();
+    // replicate main.ts global pipes if any
+    if (app.useGlobalPipes) {
+      // no-op: main.ts uses ValidationPipe which is applied in runtime bootstrap
+    }
     await app.init();
     cachedHandler = serverless(expressApp);
   } catch (err) {
-    // keep the error so we can return a 500 response on invocations
     bootstrapError = err;
-    // ensure we log the error for Vercel diagnostics
     // eslint-disable-next-line no-console
-    console.error('Failed to bootstrap Nest app in serverless handler:', err);
+    console.error('Failed to bootstrap Nest app in serverless handler:', err && err.stack ? err.stack : err);
   }
 }
 
-export default async function handler(req: any, res: any) {
+async function handler(req, res) {
   if (!cachedHandler && !bootstrapError) {
-    // attempt to bootstrap on first request
-    // don't await indefinitely; allow bootstrap to complete before invoking
     await bootstrapHandler();
   }
 
   if (bootstrapError) {
     res.statusCode = 500;
     res.setHeader('content-type', 'text/plain');
-    res.end('Server failed to start. Check function logs for details.');
+    // In non-production show the bootstrap error to aid local debugging
+    if (process.env.NODE_ENV !== 'production') {
+      // coerce to string safely
+      const msg = String((bootstrapError as any && ((bootstrapError as any).stack || (bootstrapError as any).toString())) || bootstrapError);
+      res.end('Server failed to start. Bootstrap error:\n' + msg);
+    } else {
+      res.end('Server failed to start. Check function logs for details.');
+    }
     return;
   }
 
-  return cachedHandler(req, res);
+  if (!cachedHandler) {
+    res.statusCode = 500;
+    res.setHeader('content-type', 'text/plain');
+    res.end('Server failed to start (handler missing).');
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  return (cachedHandler)(req, res);
 }
+
+module.exports = handler;
+exports.default = handler;

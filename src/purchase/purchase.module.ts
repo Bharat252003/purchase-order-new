@@ -11,10 +11,11 @@ import { PoMasterMongo } from './entities/po-master.entity-mongo';
 @Module({
   imports: [
     TypeOrmModule.forFeature([PoMaster, PoDetail, GrMaster, GrDetail]),
-    TypeOrmModule.forFeature(
-      [PoMasterMongo],
-      'mongodb',
-    ),],
+    // TypeOrmModule.forFeature(
+    //   [PoMasterMongo],
+    //   'mongodb',
+    // ),
+  ],
   providers: [PurchaseService],
   controllers: [PurchaseController]
 })

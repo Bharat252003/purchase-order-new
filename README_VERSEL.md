@@ -9,6 +9,11 @@ Files added:
 Environment variables:
 - Set your DB connection strings and other secrets in the Vercel dashboard (Settings → Environment Variables). The app uses `process.env` (see `data-source.ts`).
 
+Local dev helper:
+- Copy `.env.example` to `.env` and set values for `DATABASE_URL` and/or `DB_*` and `MONGODB_URL` when running `vercel dev` locally.
+
+Tip: `vercel dev` loads environment variables from `.env` by default, so creating a local `.env` speeds debugging.
+
 Build & deploy:
 - Commit and push these changes to your repo connected to Vercel.
 - Vercel will detect `api/index.ts` and build it with `@vercel/node`.

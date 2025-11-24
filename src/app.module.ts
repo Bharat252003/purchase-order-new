@@ -27,15 +27,15 @@ dotenv.config();
         ? { ssl: { rejectUnauthorized: false } }
         : undefined,
     }),
-    TypeOrmModule.forRoot({
-      name: 'mongodb',
-      type: 'mongodb',
-      url: process.env.MONGODB_URL,
-      database: 'testMongo',       // any DB name
-      // useNewUrlParser: true,
-      synchronize: true,           // good for learning (auto-create)
-      entities: [PoMasterMongo],
-    }),
+    // TypeOrmModule.forRoot({
+    //   name: 'mongodb',
+    //   type: 'mongodb',
+    //   url: process.env.MONGODB_URL,
+    //   database: 'testMongo',       // any DB name
+    //   // useNewUrlParser: true,
+    //   synchronize: true,           // good for learning (auto-create)
+    //   entities: [PoMasterMongo],
+    // }),
 
   ],
   controllers: [AppController],
