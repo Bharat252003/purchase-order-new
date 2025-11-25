@@ -35,6 +35,9 @@ export class PurchaseService {
 
     async createPo(createPoDto: CreatePoDto) {
         return await this.dataSource.transaction(async (manager) => {
+            const poNoCheck = await manager.getRepository(PoMaster).find({where: {po_no: createPoDto.po_no}})
+            if ( poNoCheck.length > 0) throw new NotFoundException("PO with No " + createPoDto.po_no + " is already present");
+
             const poMaster = manager.getRepository(PoMaster).create({
                 po_no: createPoDto.po_no,
                 po_date: createPoDto.po_date,
@@ -75,6 +78,13 @@ export class PurchaseService {
     async getAllPo() {
         const allPos = await this.poRepo.find({ relations: ['po_details'] })
         const result = plainToInstance(PoResponseDto, allPos, {
+            excludeExtraneousValues: true,
+        });
+        return result;
+    }
+    async getPoById(po_id:string) {
+        const Po = await this.poRepo.findOne({ relations: ['po_details'] , where: {id: po_id} })
+        const result = plainToInstance(PoResponseDto, Po, {
             excludeExtraneousValues: true,
         });
         return result;

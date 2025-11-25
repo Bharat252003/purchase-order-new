@@ -21,7 +21,7 @@ export class PurchaseController {
         }
     })
     @ApiOperation({ summary: 'Create a new purchase order' })
-    @Post()
+    @Post('order')
     async createPurchaseOrder(@Body() createPoData: CreatePoDto) {
         return this.purchaseService.createPo(createPoData)
     }
@@ -32,10 +32,23 @@ export class PurchaseController {
         type: PoResponseDto,
         isArray: true,
     })
-    @Get()
+    @Get('order')
     async getAllPurchaseOrders() {
         return this.purchaseService.getAllPo();
     }
+
+    @ApiOperation({ summary: 'Get Purchase Order By ID' })
+    @ApiParam({ name: 'po_id', example: 'po-uuid-id' })
+    @ApiOkResponse({
+        description: 'Purchase Order',
+        type: PoResponseDto,
+        isArray: false,
+    })
+    @Get('order/:po_id')
+    async getPurchaseOrderByID(@Param('po_id') po_id: string) {
+        return this.purchaseService.getPoById(po_id);
+    }
+
 
     @ApiOperation({ summary: 'Create a new Goods Receipt Note' })
     @ApiCreatedResponse({
