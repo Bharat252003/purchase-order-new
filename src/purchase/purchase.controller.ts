@@ -5,6 +5,7 @@ import { CreateGrDto } from './dto/create-gr.dto';
 import { AmendPoDto } from './dto/amend-po.dto';
 import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AllPoReportDto } from './dto/po-master-report.dto';
+import { PoResponseDto } from './dto/response/po-response.dto';
 
 @Controller('purchase')
 export class PurchaseController {
@@ -26,47 +27,16 @@ export class PurchaseController {
     }
 
     @ApiOperation({ summary: 'Get all Purchase Orders' })
-    @ApiResponse({
-        status: 200,
-        description: 'PO List',
-        schema: {
-            type: 'object',
-            properties: {
-                id: { type: 'string', example: '9b690c7f-ee07-4ef7-8250-5fe79effe021' },
-                po_no: { type: 'string', example: 'p-0001' },
-                po_date: { type: 'string', example: '2025-11-21' },
-                sup_id: { type: 'string', example: 's-002' },
-                po_rev: { type: 'number', example: 0 },
-                po_rev_reason: { type: 'string', example: '' },
-                is_active: { type: 'boolean', example: false },
-                po_amount: { type: 'string', example: '55000.00' },
-
-                po_details: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            id: { type: 'string', example: '893c4647-d6c5-4a8a-bbe7-e7fbe70b5a8f' },
-                            sr_no: { type: 'number', example: 1 },
-                            prod_id: { type: 'string', example: 'p-1' },
-                            prod_qty: { type: 'number', example: 50 },
-                            adj_qty: { type: 'number', example: 0 },
-                            prod_rate: { type: 'string', example: '100.00' },
-                            total_amount: { type: 'string', example: '5000.00' },
-                            po_master_id: {
-                                type: 'string',
-                                example: '9b690c7f-ee07-4ef7-8250-5fe79effe021',
-                            },
-                        },
-                    },
-                },
-            },
-        },
+    @ApiOkResponse({
+        description: 'List of Purchase Orders',
+        type: PoResponseDto,
+        isArray: true,
     })
     @Get()
     async getAllPurchaseOrders() {
         return this.purchaseService.getAllPo();
     }
+
     @ApiOperation({ summary: 'Create a new Goods Receipt Note' })
     @ApiCreatedResponse({
         description: 'Goods Receipt Note created successfully',

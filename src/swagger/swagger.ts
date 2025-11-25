@@ -6,14 +6,14 @@ export function createDocument(app: INestApplication) {
   const builder = new DocumentBuilder()
     .setTitle(SWAGGER_CONFIG.title)
     .setDescription(SWAGGER_CONFIG.description)
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-      },
-      'authorization',
-    )
+    // .addBearerAuth(
+    //   {
+    //     type: 'http',
+    //     scheme: 'bearer',
+    //     bearerFormat: 'JWT',
+    //   },
+    //   'authorization',
+    // )
     .setVersion(SWAGGER_CONFIG.version);
   const options = builder.build();
 

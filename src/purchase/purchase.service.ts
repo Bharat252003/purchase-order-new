@@ -12,6 +12,8 @@ import { AmendPoDto } from './dto/amend-po.dto';
 import { PoMasterMongo } from './entities/po-master.entity-mongo';
 import { plainToInstance } from 'class-transformer';
 import { AllPoReportDto } from './dto/po-master-report.dto';
+import { PoResponseDto } from './dto/response/po-response.dto';
+import { GrnResponseDto } from './dto/response/gr-response.dto';
 @Injectable()
 export class PurchaseService {
     constructor(
@@ -71,7 +73,11 @@ export class PurchaseService {
     }
 
     async getAllPo() {
-        return this.poRepo.find({ relations: ['po_details'] });
+        const allPos = await this.poRepo.find({ relations: ['po_details'] })
+        const result = plainToInstance(PoResponseDto, allPos, {
+            excludeExtraneousValues: true,
+        });
+        return result;
     }
 
     async createGrn(createGrnDto: CreateGrDto) {
@@ -105,8 +111,11 @@ export class PurchaseService {
     }
 
     async getAllGrn() {
-        return this.grRepo.find({ relations: ['gr_details'] });
-        // return this.grRepo.find({ relations: ['gr_details', 'po_master'] });
+        const allGRNs = await this.grRepo.find({ relations: ['gr_details'] });
+
+        return plainToInstance(GrnResponseDto, allGRNs, {
+            excludeExtraneousValues: true,
+        });
     }
 
     async amendPo(amendPoDto: AmendPoDto, poId: string) {
@@ -288,8 +297,8 @@ export class PurchaseService {
             // };
 
         });
-        let reports:any = { ...latestPO, totalReceivedQty, totalOrderedQty, totalAdjustedQty, totalPendingQty };
-        const result = plainToInstance( AllPoReportDto, reports, {
+        let reports: any = { ...latestPO, totalReceivedQty, totalOrderedQty, totalAdjustedQty, totalPendingQty };
+        const result = plainToInstance(AllPoReportDto, reports, {
             excludeExtraneousValues: true,
         });
 
@@ -398,7 +407,7 @@ export class PurchaseService {
 
             reports.push({ ...latestPO, totalReceivedQty, totalOrderedQty, totalAdjustedQty, totalPendingQty });
         }
-        const result = plainToInstance( AllPoReportDto, reports, {
+        const result = plainToInstance(AllPoReportDto, reports, {
             excludeExtraneousValues: true,
         });
 
