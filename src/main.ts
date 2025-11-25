@@ -11,7 +11,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'https://purchase-order-frontend.vercel.app', // add your deployed Next.js domain
+      'https://purchase-order-frontend-hazel.vercel.app', // add your deployed Next.js domain
     ],
     methods: 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization',
