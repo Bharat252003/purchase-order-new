@@ -411,7 +411,7 @@ export class PurchaseService {
         });
 
         if (!allPos || allPos.length === 0) {
-            throw new NotFoundException('Purchase Order not found');
+            return [];
         }
 
         let reports: any[] = [];
