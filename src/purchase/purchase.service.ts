@@ -35,8 +35,8 @@ export class PurchaseService {
 
     async createPo(createPoDto: CreatePoDto) {
         return await this.dataSource.transaction(async (manager) => {
-            const poNoCheck = await manager.getRepository(PoMaster).find({where: {po_no: createPoDto.po_no}})
-            if ( poNoCheck.length > 0) throw new NotFoundException("PO with No " + createPoDto.po_no + " is already present");
+            const poNoCheck = await manager.getRepository(PoMaster).find({ where: { po_no: createPoDto.po_no } })
+            if (poNoCheck.length > 0) throw new NotFoundException("PO with No " + createPoDto.po_no + " is already present");
 
             const poMaster = manager.getRepository(PoMaster).create({
                 po_no: createPoDto.po_no,
@@ -82,8 +82,9 @@ export class PurchaseService {
         });
         return result;
     }
-    async getPoById(po_id:string) {
-        const Po = await this.poRepo.findOne({ relations: ['po_details'] , where: {id: po_id} })
+
+    async getPoById(po_id: string) {
+        const Po = await this.poRepo.findOne({ relations: ['po_details'], where: { id: po_id } })
         const result = plainToInstance(PoResponseDto, Po, {
             excludeExtraneousValues: true,
         });
@@ -92,6 +93,18 @@ export class PurchaseService {
 
     async createGrn(createGrnDto: CreateGrDto) {
         return await this.dataSource.transaction(async (manager) => {
+
+            const grnNoCheck = await manager.getRepository(PoMaster).find({ where: { po_no: createGrnDto.grn_no } })
+            if (grnNoCheck.length > 0) throw new NotFoundException("GRN with No " + createGrnDto.grn_no + " is already present");
+
+            const latestPO = await this.poRepo.findOne({
+                where: { id: createGrnDto.po_master_id },
+                relations: ['po_details']
+            });
+
+            if (!latestPO) {
+                throw new NotFoundException('Purchase Order not found with given ID ' + createGrnDto.po_master_id);
+            }
 
             const grMaster = manager.getRepository(GrMaster).create({
                 grn_no: createGrnDto.grn_no,
@@ -114,8 +127,45 @@ export class PurchaseService {
 
             await manager.getRepository(GrDetail).save(grDetails);
 
-            return { message: 'Goods Receipt Note created successfully', gr_id: savedGrMaster.id }
+            // fetch all GR masters for this PO and then fetch details by their ids
+            const allGrnMaster = await manager.getRepository(GrMaster).find({
+                relations: ['gr_details'],
+                where: {
+                    po_master_id: createGrnDto.po_master_id
+                }
+            });
 
+            let allGrnDetails: GrDetail[] = [];
+
+            allGrnMaster.forEach((master) => {
+                allGrnDetails.push(...master.gr_details);
+            });
+
+
+            const poDetails = latestPO.po_details;
+
+            const receivedMap = {};
+
+            for (const gr of allGrnDetails) {
+                if (!receivedMap[gr.prod_id]) receivedMap[gr.prod_id] = 0;
+                receivedMap[gr.prod_id] += gr.prod_qty;
+            }
+            let totalPendingQty = 0;
+
+            poDetails.map(item => {
+                const received = receivedMap[item.prod_id] || 0;
+                totalPendingQty += item.prod_qty - (item.adj_qty + received);
+            });
+
+            if(totalPendingQty <= 0){
+                latestPO.is_active = false;
+                await manager.getRepository(PoMaster).save(latestPO);
+                console.log("PO  — fully received");
+            }
+
+            console.log("total pending qty is ", totalPendingQty);
+
+            return { message: 'Goods Receipt Note created successfully', gr_id: savedGrMaster.id }m 
         })
 
     }

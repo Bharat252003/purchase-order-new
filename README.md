@@ -1,98 +1,217 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+```markdown
+# NestJS + Supabase (PostgreSQL) + TypeORM API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A robust, scalable backend API built with **NestJS**, **TypeORM**, and **Supabase PostgreSQL**, using **100% manual migrations** (no `synchronize: true` — safe for production).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tech Stack
 
-## Description
+- NestJS 10+
+- TypeORM 0.3.x
+- Supabase PostgreSQL
+- Class Validator & Class Transformer
+- Configurable via `.env`
+- Manual database migrations (required for Supabase)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Prerequisites
 
-```bash
-$ pnpm install
-```
+- Node.js ≥ 18
+- pnpm (recommended) or npm/yarn
+- Supabase account & project
+- Git
 
-## Compile and run the project
+---
+
+## Project Setup
+
+### 1. Clone & Install
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+git clone <your-repo-url>
+cd <your-project-name>
+pnpm install
+# or: npm install
 ```
 
-## Run tests
+### 2. Environment Configuration
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+cp .env.example .env
 ```
 
-## Deployment
+Edit `.env` with your Supabase connection:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```env
+# Supabase PostgreSQL Connection (Recommended format)
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_REF.supabase.co:5432/postgres
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+# Optional: Individual params (if not using DATABASE_URL)
+# DB_HOST=db.YOUR_REF.supabase.co
+# DB_PORT=5432
+# DB_USERNAME=postgres
+# DB_PASSWORD=YOUR_PASSWORD
+# DB_NAME=postgres
+
+# App
+PORT=3000
+NODE_ENV=development
+```
+
+> **Warning: Never use `synchronize: true` with Supabase in production** — it will fail due to permission restrictions.
+
+---
+
+## Database Migrations (Manual – Required!)
+
+This project uses **manual migrations only**. All schema changes must go through migration files.
+
+### Important Migration Commands (You Must Use These)
+
+| Command                                 | Purpose                                      |
+|-----------------------------------------|----------------------------------------------|
+| `pnpm run typeorm migration:generate ./src/migrations/YourMigrationName` | Generate migration from entity changes       |
+| `pnpm run typeorm migration:create ./src/migrations/YourCustomName`     | Create blank migration (for raw SQL/fixes)   |
+| `pnpm run typeorm migration:run`        | Run all pending migrations                   |
+| `pnpm run typeorm migration:revert`     | Revert the last applied migration            |
+| `pnpm run typeorm schema:sync`          | (Do NOT use in production – for dev only)   |
+
+### Correct Migration Workflow (Follow This Order!)
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+# 1. Make changes to your entities (e.g., add new fields, create new entity)
+
+# 2. Generate a migration based on entity changes
+pnpm run typeorm migration:generate ./src/migrations/CreateUserTable
+# or
+pnpm run typeorm migration:generate ./src/migrations/AddEmailToUser
+
+# 3. Review the generated file in src/migrations/ — make adjustments if needed
+
+# 4. Run the migration
+pnpm run typeorm migration:run
+
+# 5. Build & start the app
+pnpm run build
+pnpm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+> **Tip**: Always test migrations locally first (using Docker or local Postgres) before running on Supabase.
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## Available Scripts (package.json)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+# Development
+pnpm run start:dev          # Hot-reload development server
 
-## Support
+# Production
+pnpm run build              # Compile TypeScript to JS
+pnpm run start:prod         # Run compiled app
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Migrations (Most Important!)
+pnpm run typeorm migration:generate ./src/migrations/Name    # Generate from entities
+pnpm run typeorm migration:create ./src/migrations/Name      # Create empty migration
+pnpm run typeorm migration:run                               # Apply pending migrations
+pnpm run typeorm migration:revert                            # Undo last migration
+pnpm run typeorm schema:drop                                 # (Danger) Drop entire schema
 
-## Stay in touch
+# Other
+pnpm run lint               # Run ESLint
+pnpm run test               # Run Jest tests (if configured)
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+> These commands use `ts-node` + your `data-source.ts` to connect properly.
+
+---
+
+## Local Development with Docker (Optional but Recommended)
+
+Run a local PostgreSQL instance for safe testing:
+
+```bash
+docker-compose up -d
+```
+
+Update `.env` temporarily:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nestjs_local
+```
+
+Then run migrations safely before pushing to Supabase.
+
+---
+
+## Supabase Best Practices
+
+- Use the `postgres` role only for migrations (it has full privileges)
+- Create a limited-role user (e.g., `app_user`) for your API runtime
+- Enable Row Level Security (RLS) on sensitive tables
+- Use Supabase Auth? Validate JWTs using `@supabase/auth-helpers` or custom guard
+
+---
+
+## Project Structure
+
+```
+src/
+├── migrations/              # All migration files (*.ts)
+├── entities/                # TypeORM entities
+├── modules/                 # Feature modules
+├── config/
+│   └── data-source.ts       # TypeORM DataSource (used by CLI)
+├── app.module.ts
+├── main.ts
+docker-compose.yml
+ormconfig.json (optional)
+```
+
+---
+
+## Deployment Notes
+
+1. Run migrations **after** deploy (CI/CD step):
+   ```bash
+   pnpm run build
+   pnpm run typeorm migration:run
+   pnpm run start:prod
+   ```
+
+2. Recommended platforms:
+   - Railway
+   - Render
+   - Fly.io
+   - Vercel (with Serverless Functions – limited)
+   - Coolify / CapRover / Docker
+
+---
+
+## Contributing
+
+1. Create feature/fix branch
+2. Make entity changes
+3. Generate & test migration locally
+4. Commit migration file
+5. Open Pull Request
+
+> Never commit code without a corresponding migration!
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT © 2025 Your Name / Your Team
+
+---
+
+Built with love for clean, maintainable, Supabase-ready backends.
+```
+
+This README is **100% accurate** to your current setup using:
+
+```bash
+pnpm run typeorm migration:generate ...
+pnpm run typeorm migration:run
+```
