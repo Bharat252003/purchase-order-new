@@ -165,7 +165,7 @@ export class PurchaseService {
 
             console.log("total pending qty is ", totalPendingQty);
 
-            return { message: 'Goods Receipt Note created successfully', gr_id: savedGrMaster.id }m 
+            return { message: 'Goods Receipt Note created successfully', gr_id: savedGrMaster.id }
         })
 
     }
