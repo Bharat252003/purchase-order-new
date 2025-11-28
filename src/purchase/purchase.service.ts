@@ -14,6 +14,8 @@ import { plainToInstance } from 'class-transformer';
 import { AllPoReportDto } from './dto/po-master-report.dto';
 import { PoResponseDto } from './dto/response/po-response.dto';
 import { GrnResponseDto } from './dto/response/gr-response.dto';
+import { from } from 'rxjs';
+import { PoFilterDto } from './dto/filters/po-filter.dto';
 @Injectable()
 export class PurchaseService {
     constructor(
@@ -75,8 +77,26 @@ export class PurchaseService {
         })
     }
 
-    async getAllPo() {
-        const allPos = await this.poRepo.find({ relations: ['po_details'] })
+    async getAllPo(filters: PoFilterDto) {
+        // const allPos = await this.poRepo.find({ relations: ['po_details'] })
+        const { sup_id, status, po_no, from_date, to_date } = filters;
+        const query = this.poRepo.createQueryBuilder('po').leftJoinAndSelect('po.po_details', 'po_details');
+
+        if (sup_id) {
+            query.andWhere('po.sup_id = :sup_id', { sup_id })
+        }
+        if (status !== undefined) {
+            query.andWhere('po.is_active = :status', { status })
+        }
+        if (from_date && to_date) {
+            query.andWhere('po.po_date BETWEEN :from AND :to', { from: from_date, to: to_date });
+        }
+        if(po_no){
+            query.andWhere('po_no LIKE :po_no',{ po_no : `%${po_no}%`})
+        }
+
+
+        const allPos = await query.getMany()
         const result = plainToInstance(PoResponseDto, allPos, {
             excludeExtraneousValues: true,
         });
@@ -157,7 +177,7 @@ export class PurchaseService {
                 totalPendingQty += item.prod_qty - (item.adj_qty + received);
             });
 
-            if(totalPendingQty <= 0){
+            if (totalPendingQty <= 0) {
                 latestPO.is_active = false;
                 await manager.getRepository(PoMaster).save(latestPO);
                 console.log("PO  — fully received");

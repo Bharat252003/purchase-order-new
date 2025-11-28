@@ -1,15 +1,17 @@
-import { Body, Controller, Post, Get, Param } from '@nestjs/common';
+import { Body, Controller, Post, Get, Param, Query } from '@nestjs/common';
 import { PurchaseService } from './purchase.service';
 import { CreatePoDto } from './dto/create-po.dto';
 import { CreateGrDto } from './dto/create-gr.dto';
 import { AmendPoDto } from './dto/amend-po.dto';
-import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AllPoReportDto } from './dto/po-master-report.dto';
 import { PoResponseDto } from './dto/response/po-response.dto';
+import { PoFilterDto } from './dto/filters/po-filter.dto';
 
 @Controller('purchase')
 export class PurchaseController {
     constructor(private readonly purchaseService: PurchaseService) { }
+    @Post('order')
     @ApiResponse({
         status: 201,
         description: 'Create a new Purchase Order',
@@ -21,22 +23,27 @@ export class PurchaseController {
         }
     })
     @ApiOperation({ summary: 'Create a new purchase order' })
-    @Post('order')
     async createPurchaseOrder(@Body() createPoData: CreatePoDto) {
         return this.purchaseService.createPo(createPoData)
     }
 
+    @Get('order')
     @ApiOperation({ summary: 'Get all Purchase Orders' })
     @ApiOkResponse({
         description: 'List of Purchase Orders',
         type: PoResponseDto,
         isArray: true,
     })
-    @Get('order')
-    async getAllPurchaseOrders() {
-        return this.purchaseService.getAllPo();
+    @ApiQuery({ name: 'sup_id', required: false })
+    @ApiQuery({ name: 'status', required: false })
+    @ApiQuery({ name: 'from_date', required: false })
+    @ApiQuery({ name: 'to_date', required: false })
+    @ApiQuery({ name: 'po_no', required: false })
+    async getAllPurchaseOrders(@Query() filters: PoFilterDto) {
+        return this.purchaseService.getAllPo(filters);
     }
 
+    @Get('order/:po_id')
     @ApiOperation({ summary: 'Get Purchase Order By ID' })
     @ApiParam({ name: 'po_id', example: 'po-uuid-id' })
     @ApiOkResponse({
@@ -44,7 +51,6 @@ export class PurchaseController {
         type: PoResponseDto,
         isArray: false,
     })
-    @Get('order/:po_id')
     async getPurchaseOrderByID(@Param('po_id') po_id: string) {
         return this.purchaseService.getPoById(po_id);
     }
